@@ -54,11 +54,19 @@ const Banner = ({ title }) => (
   <Title>{ title || '[loading...]' }</Title>
 );
 
-const CourseList = ({ courses }) => (
-  <Button.Group>
-    {courses.map(course => <Course key={course.id} course={ course } />)}
-  </Button.Group>
-);
+const CourseList = ({ courses }) => {
+  const [term, setTerm] = useState('Fall');
+  const termCourses = courses.filter(course => term === getCourseTerm(course));
+  return (
+    <React.Fragment>
+      <TermSelector state={ { term, setTerm } } />
+      <Button.Group>
+      { termCourses.map(course =>
+           <Course key={ course.id } course={ course }  />) }
+      </Button.Group>
+    </React.Fragment>
+  );
+};
 
 const terms = { F: 'Fall', W: 'Winter', S: 'Spring'};
 
@@ -74,6 +82,25 @@ const Course = ({ course }) => (
   <Button>
     { getCourseTerm(course) } CS { getCourseNumber(course) }: { course.title }
   </Button>
+);
+
+const TermSelector = ({ state }) => (
+  <Button.Group hasAddons>
+  { Object.values(terms)
+      .map(value => 
+        <Button key={value}
+          color={ buttonColor(value === state.term) }
+          onClick={ () => state.setTerm(value) }
+          >
+          { value }
+        </Button>
+      )
+  }
+  </Button.Group>
+);
+
+const buttonColor = selected => (
+  selected ? 'success' : null
 );
 
 export default App;
