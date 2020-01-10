@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import 'rbx/index.css';
 import { Button, Container, Title } from 'rbx';
+import firebase from 'firebase/app';
+import 'firebase/database';
 
 const schedule = {
   "title": "CS Courses for 2018-2019",
@@ -30,24 +32,21 @@ const schedule = {
 
 const App = () => {
   const [schedule, setSchedule] = useState({ title: '', courses: [] });
-  const url = 'https://courses.cs.northwestern.edu/394/data/cs-courses.php';
 
   useEffect(() => {
-    const fetchSchedule = async () => {
-      const response = await fetch(url);
-      if (!response.ok) throw response;
-      const json = await response.json();
-      setSchedule(addScheduleTimes(json));
+    const handleData = snap => {
+      if (snap.val()) setSchedule(addScheduleTimes(snap.val()));
     }
-    fetchSchedule();
-  }, [])
+    db.on('value', handleData, error => alert(error));
+    return () => { db.off('value', handleData); };
+  }, []);
 
   return (
     <Container>
       <Banner title={ schedule.title } />
       <CourseList courses={ schedule.courses } />
     </Container>
-  );
+);
 };
 
 const Banner = ({ title }) => (
@@ -86,12 +85,13 @@ const getCourseNumber = course => (
   
 const Course = ({ course, state }) => (
   <Button color={ buttonColor(state.selected.includes(course)) }
-    onClick={ () => state.toggle(course) }
-    disabled={ hasConflict(course, state.selected) }
-    >
-    { getCourseTerm(course) } CS { getCourseNumber(course) }: { course.title }
-  </Button>
-);
+      onClick={ () => state.toggle(course) }
+      onDoubleClick={ () => moveCourse(course) }
+      disabled={ hasConflict(course, state.selected) }
+      >
+      { getCourseTerm(course) } CS { getCourseNumber(course) }: { course.title }
+    </Button>
+  );
 
 const TermSelector = ({ state }) => (
   <Button.Group hasAddons>
@@ -142,7 +142,7 @@ const addCourseTimes = course => ({
 
 const addScheduleTimes = schedule => ({
   title: schedule.title,
-  courses: schedule.courses.map(addCourseTimes)
+  courses: Object.values(schedule.courses).map(addCourseTimes)
 });
 
 const daysOverlap = (days1, days2) => ( 
@@ -162,5 +162,34 @@ const courseConflict = (course1, course2) => (
   && getCourseTerm(course1) === getCourseTerm(course2)
   && timeConflict(course1, course2)
 );
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB5eWVdAEe_lYt9LNaMIkJOxSSCKMdfIP4",
+  authDomain: "coursescheduler-14f8b.firebaseapp.com",
+  databaseURL: "https://coursescheduler-14f8b.firebaseio.com",
+  projectId: "coursescheduler-14f8b",
+  storageBucket: "coursescheduler-14f8b.appspot.com",
+  messagingSenderId: "201881448121",
+  appId: "1:201881448121:web:0406d7c1f1aa46dd4bb568",
+  measurementId: "G-5H91WX88FP"
+};
+
+const moveCourse = course => {
+  const meets = prompt('Enter new meeting data, in this format:', course.meets);
+  if (!meets) return;
+  const {days} = timeParts(meets);
+  if (days) saveCourse(course, meets); 
+  else moveCourse(course);
+};
+
+const saveCourse = (course, meets) => {
+  db.child('courses').child(course.id).update({meets})
+    .catch(error => alert(error));
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database().ref();
+
+
 
 export default App;
